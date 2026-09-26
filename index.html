@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI LÀ TRIỆU PHÚ</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#173a86,#07142f 65%);color:#fff;font-family:Arial,sans-serif}
+.wrap{max-width:1000px;margin:auto;padding:25px}.card{background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.14);border-radius:22px;padding:28px;box-shadow:0 15px 40px rgba(0,0,0,.3)}
+h1{font-family:Georgia,serif;text-align:center;color:#ffd33d;font-size:42px;margin:5px 0}.sub{text-align:center;opacity:.8;margin-bottom:24px}
+input,button{width:100%;padding:14px;border-radius:12px;font-size:18px}input{border:0;margin:8px 0;color:#111}button{border:0;background:#ffd33d;color:#071d4d;font-weight:800;cursor:pointer;margin-top:10px}button:disabled{opacity:.45;cursor:not-allowed}
+.hidden{display:none!important}.panel{max-width:650px;margin:auto}.status,.note{text-align:center}.status{font-size:18px;margin:14px 0}.timer{text-align:center;font-size:50px;color:#ffd33d;font-weight:900}
+.count{font-size:100px;text-align:center;color:#ffd33d;font-weight:900;margin:35px}.q{font-size:25px;font-weight:700;margin:20px 0;line-height:1.4}.answers{display:grid;gap:12px}.answer{background:#173b86;color:#fff;text-align:left}.answer:hover{background:#2452ad}.answer{transition:.2s}
+.qr{background:white;padding:14px;border-radius:14px;width:max-content;margin:15px auto}.players{margin-top:18px;padding:15px;background:rgba(255,255,255,.08);border-radius:12px}
+.hostLink{word-break:break-all;text-align:center;font-size:14px;opacity:.75}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{padding:12px;border-bottom:1px solid rgba(255,255,255,.15);text-align:center}th{color:#ffd33d}
+.rank1{font-size:24px;color:#ffd33d}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="app" class="card">
+<h1>AI LÀ TRIỆU PHÚ</h1><div class="sub">Trò chơi tương tác cùng cả lớp</div>
+
+<div id="hostPanel" class="panel hidden">
+<h2>🎤 QUẢN TRÒ</h2>
+<div id="hostStatus" class="status">Đang kết nối...</div>
+<div class="status">📱 QR THAM GIA</div>
+<div id="qrcode" class="qr"></div>
+<div class="hostLink" id="playerLink"></div>
+<div class="players">👥 Người chơi: <b id="playerCount">0</b><div id="playerNames" class="note"></div></div>
+<button id="startBtn" disabled>▶ BẮT ĐẦU</button>
+<p class="note">Bấm BẮT ĐẦU → tất cả máy đếm ngược 5 giây → mỗi câu 15 giây.</p>
+</div>
+
+<div id="playerPanel" class="panel">
+<h2>👤 THAM GIA</h2>
+<input id="name" maxlength="30" placeholder="Nhập tên của bạn">
+<button id="joinBtn">VÀO TRÒ CHƠI</button>
+<div id="playerStatus" class="status"></div>
+</div>
+
+<div id="countPanel" class="hidden"><div class="count" id="count">5</div><div class="note">Chuẩn bị...</div></div>
+<div id="gamePanel" class="hidden"><div class="timer" id="timer">15</div><div id="questionNo" class="note"></div><div id="question" class="q"></div><div id="answers" class="answers"></div></div>
+<div id="resultPanel" class="hidden"><h2 style="text-align:center">🏆 BẢNG XẾP HẠNG</h2><table><thead><tr><th>Hạng</th><th>Tên</th><th>Điểm</th></tr></thead><tbody id="leaderboard"></tbody></table></div>
+</div></div>
+
+<script>
+const HOST_ID='ai-la-trieu-phu-quan-tro-2026';
+const QUESTIONS=[["Theo triết học Mác – Lênin, bản chất con người được hiểu là gì?", ["Bản chất sinh học thuần túy", "Bản chất tinh thần bất biến", "Tổng hòa các quan hệ xã hội", "Do số phận quyết định"], 2], ["Quan niệm triết học Mác – Lênin về “Tự do” là gì?", ["Làm bất cứ điều gì mình muốn", "Nhận thức và hành động theo quy luật khách quan", "Không chịu bất kỳ giới hạn nào", "Sống tách khỏi xã hội"], 1], ["Tự do của cá nhân có quan hệ thế nào với xã hội?", ["Hoàn toàn tách biệt", "Chỉ phụ thuộc vào ý muốn cá nhân", "Được thực hiện trong những điều kiện xã hội nhất định", "Không liên quan đến người khác"], 2], ["Mối quan hệ giữa con người và hoàn cảnh xã hội được hiểu thế nào?", ["Con người hoàn toàn bị hoàn cảnh quyết định", "Hoàn cảnh không ảnh hưởng con người", "Con người vừa chịu tác động vừa cải tạo hoàn cảnh", "Con người tồn tại độc lập với xã hội"], 2], ["Nếu không có các quan hệ xã hội, con người sẽ như thế nào?", ["Vẫn phát triển đầy đủ như một con người xã hội", "Không thể phát triển đầy đủ bản chất xã hội", "Trở nên hoàn toàn tự do", "Không chịu ảnh hưởng nào"], 1], ["Câu thành ngữ hoặc tục ngữ nào thể hiện vai trò của hoàn cảnh?", ["Có công mài sắt, có ngày nên kim", "Đi một ngày đàng, học một sàng khôn", "Gần mực thì đen, gần đèn thì sáng", "Uống nước nhớ nguồn"], 2], ["Câu ca dao hoặc tục ngữ nào thể hiện vai trò của con người trong việc tự quyết định?", ["Cha mẹ sinh con, trời sinh tính", "Có chí thì nên", "Đói cho sạch, rách cho thơm", "Ăn quả nhớ kẻ trồng cây"], 1], ["Yếu tố nào giúp con người phát huy tự do một cách hiện thực?", ["Nhận thức và cải tạo hoàn cảnh", "Chỉ dựa vào may mắn", "Tách khỏi xã hội", "Không cần tuân theo quy luật"], 0], ["Chọn câu hoàn chỉnh chứa các từ Hán – Việt phù hợp.", ["Con người là tổng hòa những quan hệ xã hội", "Con người là sản phẩm của xã hội", "Con người là chủ thể của lịch sử", "Cả ba ý trên"], 3], ["Quan niệm cho rằng “số phận đã được định sẵn” trái với quan điểm nào?", ["Con người không thể thay đổi gì", "Con người có khả năng lựa chọn và hành động trong những điều kiện nhất định", "Xã hội không ảnh hưởng cá nhân", "Mọi thứ đều do may rủi"], 1]];
+const QUESTION_TIME=15000, REVEAL_TIME=2000, COUNTDOWN=5000;
+const isHost=false;
+const hostPanel=document.getElementById('hostPanel'),playerPanel=document.getElementById('playerPanel'),countPanel=document.getElementById('countPanel'),gamePanel=document.getElementById('gamePanel'),resultPanel=document.getElementById('resultPanel');
+const hostStatus=document.getElementById('hostStatus'),playerStatus=document.getElementById('playerStatus'),startBtn=document.getElementById('startBtn');
+let peer,conns=[],hostConn=null,timerInt=null,gameStartAt=0,myOffset=0,answered=false,scores={},myName='',started=false;
+
+function now(){return Date.now()+myOffset}
+function disableAnswers(){document.querySelectorAll('.answer').forEach(b=>b.disabled=true)}
+function showCountdown(startAt){
+ countPanel.classList.remove('hidden');gamePanel.classList.add('hidden');resultPanel.classList.add('hidden');clearInterval(timerInt);
+ const tick=()=>{const left=Math.max(0,startAt-now());document.getElementById('count').textContent=Math.max(1,Math.ceil(left/1000));if(left<=0){clearInterval(timerInt);showQuestion(0)}};
+ timerInt=setInterval(tick,50);tick();
+}
+function showQuestion(i){
+ if(i>=QUESTIONS.length){showResults();return}
+ countPanel.classList.add('hidden');gamePanel.classList.remove('hidden');resultPanel.classList.add('hidden');answered=false;
+ const q=QUESTIONS[i];document.getElementById('questionNo').textContent=`Câu ${i+1}/${QUESTIONS.length}`;document.getElementById('question').textContent=q[0];
+ const a=document.getElementById('answers');a.innerHTML='';
+ q[1].forEach((x,j)=>{const b=document.createElement('button');b.className='answer';b.textContent=String.fromCharCode(65+j)+'. '+x;b.onclick=()=>answer(i,j,b);a.appendChild(b)});
+ runTimer(i);
+}
+function revealAnswer(i){
+ const q=QUESTIONS[i];
+ const buttons=[...document.querySelectorAll('.answer')];
+ buttons.forEach((b,j)=>{
+  b.disabled=true;
+  if(j===q[2]){b.textContent='✅ '+b.textContent;b.style.background='#198754';}
+ });
+ const selected=buttons.find(b=>b.dataset.selected==='1');
+ if(selected && !selected.textContent.startsWith('✅')){selected.textContent='❌ '+selected.textContent;selected.style.background='#b02a37';}
+}
+function runTimer(i){
+ clearInterval(timerInt);const deadline=gameStartAt+(i+1)*QUESTION_TIME;
+ const tick=()=>{const left=Math.max(0,deadline-now());document.getElementById('timer').textContent=Math.ceil(left/1000);
+  if(left<=0){
+   clearInterval(timerInt);
+   if(!answered)answered=true;
+   disableAnswers();
+   revealAnswer(i);
+   if(i<QUESTIONS.length-1)setTimeout(()=>showQuestion(i+1),2000);
+   else setTimeout(showResults,2000);
+  }
+ };
+ timerInt=setInterval(tick,50);tick();
+}
+function answer(i,j,button){
+ if(answered)return;answered=true;disableAnswers();button.dataset.selected='1';
+ const correct=j===QUESTIONS[i][2];
+ if(correct)button.textContent='☑ '+button.textContent;
+ const deadline=gameStartAt+(i+1)*QUESTION_TIME,remaining=Math.max(0,deadline-now()),points=correct?Math.max(100,Math.round(1000+remaining/10)):0;
+ if(isHost)scores[myName]=(scores[myName]||0)+points;else if(hostConn&&hostConn.open)hostConn.send({type:'ANSWER',name:myName,correct,points});
+}
+function showResults(){clearInterval(timerInt);gamePanel.classList.add('hidden');countPanel.classList.add('hidden');resultPanel.classList.remove('hidden');renderLeaderboard()}
+function renderLeaderboard(){
+ const rows=Object.entries(scores).sort((a,b)=>b[1]-a[1]);document.getElementById('leaderboard').innerHTML=rows.map((x,i)=>`<tr><td class="${i===0?'rank1':''}">${i+1}</td><td>${esc(x[0])}</td><td>${x[1]}</td></tr>`).join('')||'<tr><td colspan="3">Chưa có dữ liệu</td></tr>';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function updatePlayers(){const a=conns.filter(c=>c.open);document.getElementById('playerCount').textContent=a.length;document.getElementById('playerNames').textContent=a.map(c=>c.playerName).filter(Boolean).join(' • ')||'Đang chờ người chơi...'}
+
+if(isHost){
+ playerPanel.classList.add('hidden');hostPanel.classList.remove('hidden');
+ const playerUrl=location.href.split('?')[0];document.getElementById('playerLink').textContent=playerUrl;new QRCode(document.getElementById('qrcode'),{text:playerUrl,width:190,height:190});
+ peer=new Peer(HOST_ID);
+ peer.on('open',()=>{hostStatus.textContent='🟢 Quản trò đã sẵn sàng';startBtn.disabled=false});
+ peer.on('connection',c=>{
+  conns.push(c);c.on('open',()=>{c.send({type:'SYNC',hostNow:Date.now()});updatePlayers()});
+  c.on('data',d=>{
+   if(d.type==='JOIN'){c.playerName=d.name;scores[d.name]=scores[d.name]||0;updatePlayers()}
+   if(d.type==='PING')c.send({type:'PONG',clientSent:d.clientSent,hostNow:Date.now()});
+   if(d.type==='ANSWER'){scores[d.name]=scores[d.name]||0;if(d.correct)scores[d.name]+=d.points}
+  });
+  c.on('close',()=>{conns=conns.filter(x=>x!==c);updatePlayers()});
+ });
+ startBtn.onclick=()=>{
+  if(!conns.some(c=>c.open)){alert('Chưa có người chơi nào tham gia.');return}
+  startBtn.disabled=true;started=true;gameStartAt=Date.now()+COUNTDOWN+300;
+  conns.filter(c=>c.open).forEach(c=>c.send({type:'START',startAt:gameStartAt}));
+  showCountdown(gameStartAt);
+ };
+ setInterval(()=>{if(started&&gameStartAt&&Date.now()>=gameStartAt+QUESTIONS.length*(QUESTION_TIME+REVEAL_TIME)+500){conns.filter(c=>c.open).forEach(c=>c.send({type:'RESULTS',scores}));started=false;showResults()}},100);
+}else{
+ playerPanel.classList.remove('hidden');
+ document.getElementById('joinBtn').onclick=()=>{
+  myName=document.getElementById('name').value.trim();if(!myName){playerStatus.textContent='⚠️ Hãy nhập tên trước.';return}
+  document.getElementById('joinBtn').disabled=true;playerStatus.textContent='⏳ Đang kết nối với quản trò...';peer=new Peer();
+  peer.on('open',()=>{hostConn=peer.connect(HOST_ID,{reliable:true});hostConn.on('open',()=>{hostConn.send({type:'JOIN',name:myName});hostConn.send({type:'PING',clientSent:Date.now()});playerStatus.textContent='🟢 Đã tham gia! Chờ quản trò bấm BẮT ĐẦU.'});
+   hostConn.on('data',d=>{
+    if(d.type==='PONG')myOffset=d.hostNow-((d.clientSent+Date.now())/2);
+    if(d.type==='SYNC')myOffset=d.hostNow-Date.now();
+    if(d.type==='START'){gameStartAt=d.startAt;showCountdown(gameStartAt)}
+    if(d.type==='RESULTS'){scores=d.scores||{};showResults()}
+   });
+   hostConn.on('close',()=>{playerStatus.textContent='❌ Kết nối với quản trò đã đóng.'});
+  });
+  peer.on('error',()=>{playerStatus.textContent='❌ Không kết nối được. Hãy thử lại.';document.getElementById('joinBtn').disabled=false});
+ };
+}
+</script>
+</body>
+</html>
