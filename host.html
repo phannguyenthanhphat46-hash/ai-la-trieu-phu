@@ -109,7 +109,7 @@ function updatePlayers(){const a=conns.filter(c=>c.open);document.getElementById
 
 if(isHost){
  playerPanel.classList.add('hidden');hostPanel.classList.remove('hidden');
- const playerUrl=new URL('./index.html',location.href).href;document.getElementById('playerLink').textContent=playerUrl;new QRCode(document.getElementById('qrcode'),{text:playerUrl,width:190,height:190});
+ const playerUrl='https://phannguyenthanhphat46-hash.github.io/ai-la-trieu-phu/index.html';document.getElementById('playerLink').textContent=playerUrl;new QRCode(document.getElementById('qrcode'),{text:playerUrl,width:190,height:190});
  peer=new Peer(HOST_ID,{host:'0.peerjs.com',port:443,path:'/peerjs',secure:true,debug:1});
  peer.on('open',()=>{hostStatus.textContent='🟢 Quản trò đã sẵn sàng';startBtn.disabled=false;});
  peer.on('error',e=>{
