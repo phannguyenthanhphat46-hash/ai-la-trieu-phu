@@ -109,9 +109,22 @@ function updatePlayers(){const a=conns.filter(c=>c.open);document.getElementById
 
 if(isHost){
  playerPanel.classList.add('hidden');hostPanel.classList.remove('hidden');
- const playerUrl='https://phannguyenthanhphat46-hash.github.io/ai-la-trieu-phu/index.html';document.getElementById('playerLink').textContent=playerUrl;document.getElementById('qrcode').innerHTML='<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAcIAAAHCAQAAAABUY/ToAAADjklEQVR4nO2cTWrkMBCFX40Ns5QhB8hR5Bv0kYYcKTewjzIHCMjLBjU1C1VZspNhILRJ3PNqEeJ0PtyC4qn+JFF8zuYfnwQBkiRJkiRJkiTJ70eKWQ+RAcA8ADIuIsDSw3/4f41f/G1JfksyqqpqAhB/m7/ohE5lDNn8CuhUVVW35Fd8W5LfklxWfQGKS5XHWUR0wq18KiL9/d5J8jHIfvesWADMl7de5wEChLdeEBKA5V7vJPnYpIzhKvIrdWXLUk2d6rT0kPGwd5I8N+k6FBTAAiiWAcDylAXossTXAYhqAtUWJM+1TpKHk7OIiAyAjDAJQkwAgE6BokO3kpbd650kH4QsOlT1xaIg3ESBDCBkYB46mFTd450kH4tESdejZnsu6hOy/RZVFTEBOgX7rRQCpnOtk+RxJLzk06lOIW8f3bmiZugUTJZKlYg+RNJNzTIQSzbWacnGiqsE86FiMXVKHSK5tcZVEEyCbPMqhWlzLp1WhD5EcmO2eYUMlBysOpLmVaXUtMn2N/oQycaqDtXoWlWz61ACigTF4mvuUfQhkm5t2JNWHfL42WXJtjaYQNGHSDZWW/E183Lr1IPojKpI1CGSW3Md8igIQT1+LgUhC6ctV6sJ27nWSfJoUkbcxMpAiwjWDodZyJCxEah7vJPko5BrJO1F6G1K5kXFvNapGQ+R3FtN3D2c3qRfZd/ympHtb/Qhkq1VT2lbZWopWXEuEyiAuT3JD6wqjQXWIXv6lSxXa6tHjKlJvrPGNyZvlXmDzCeJql+xTk3yna1zjFcBwpsAgCjQKeZL8sGipYdNVqP37Oxc6yR5HLnqELwpn7zTWg8DxRJ2wzI07mUk/0Lqy/PVB12XnwqEq8iIm+iLiMgYVGVcfvJ8Gcmd1V6HjytmtOWitV9WdCiBsx8kd9bWGNUnFfeJWNPwYL+M5N7a0hDarurOr9xYpya5N91a+eM6RGQt2NC2Q6hDJD8g670fNkTkB1t1wm1z+Ufwg/inXCfJI8hm37KmGbzaOK2fosbZq2BRh0juyHrvR7iKnwhSxSy93SczlyOuN55zJfkP0u4f6iHj0gMx3URfBteml6HjXkZyax/cHdNlzJerYH6+CuIrIDE9QRASpOngn2udJI8j9/d+2F6WoGJzjF0GkKHzBcAsK3mudZI8jmzr1DZP7Wl91HZwsT10z5iaZGPCO85JkiRJkiRJkv85+QfvFFIzozjEpQAAAABJRU5ErkJggg==" width="260" height="260" alt="QR tham gia">';
- peer=new Peer(HOST_ID);
- peer.on('open',()=>{hostStatus.textContent='🟢 Quản trò đã sẵn sàng';startBtn.disabled=false});
+ const playerUrl=new URL('./index.html',location.href).href;document.getElementById('playerLink').textContent=playerUrl;new QRCode(document.getElementById('qrcode'),{text:playerUrl,width:190,height:190});
+ peer=new Peer(HOST_ID,{host:'0.peerjs.com',port:443,path:'/peerjs',secure:true,debug:1});
+ peer.on('open',()=>{hostStatus.textContent='🟢 Quản trò đã sẵn sàng';startBtn.disabled=false;});
+ peer.on('error',e=>{
+  console.error('PeerJS error:',e);
+  const map={
+   'unavailable-id':'❌ Link quản trò đang được mở ở một cửa sổ khác. Hãy đóng mọi trang host.html rồi tải lại.',
+   'network':'❌ Không kết nối được máy chủ PeerJS. Kiểm tra Internet rồi tải lại.',
+   'server-error':'❌ Máy chủ PeerJS đang lỗi. Hãy thử lại sau vài giây.',
+   'socket-error':'❌ Kết nối mạng PeerJS bị lỗi. Hãy tải lại trang.',
+   'socket-closed':'❌ Kết nối PeerJS đã đóng. Hãy tải lại trang.'
+  };
+  hostStatus.textContent=map[e.type] || ('❌ PeerJS: '+(e.type||'lỗi kết nối'));
+  startBtn.disabled=true;
+ });
+ peer.on('disconnected',()=>{hostStatus.textContent='⚠️ PeerJS bị ngắt kết nối. Đang thử kết nối lại...';peer.reconnect();});
  peer.on('connection',c=>{
   conns.push(c);c.on('open',()=>{c.send({type:'SYNC',hostNow:Date.now()});updatePlayers()});
   c.on('data',d=>{
